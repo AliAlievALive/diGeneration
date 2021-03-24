@@ -34,7 +34,6 @@ public class Container {
         HashSet<Class<?>> todo = new HashSet<>(definitions);
 
         while (todo.size() > 0) {
-            // -> .. -> .. -> .. ->
             final var generation = todo.stream() // lazy
                     .map(o -> o.getDeclaredConstructors()[0])
                     .filter(o -> o.getParameterCount() == 0 || allParameterInValues(o))
@@ -44,8 +43,7 @@ public class Container {
                             List<Object> params = Arrays.stream(o.getParameters())
                                     .map(p -> Optional.ofNullable(objects.get(p.getType()))
                                             .or(() -> Optional.ofNullable(values.get(
-                                                    // TODO: NPE
-                                                    p.getAnnotation(Inject.class).value() // arg0
+                                                    p.getAnnotation(Inject.class).value()
                                             )))
                                             .orElseThrow(() -> new UnmetDependenciesException(p.getName()))
                                     )
@@ -53,30 +51,24 @@ public class Container {
                             return o.newInstance(params.toArray());
                         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                             e.printStackTrace();
-                            throw new ObjectInstantiationException(e); // <- e //
+                            throw new ObjectInstantiationException(e);
                         }
                     })
                     .collect(Collectors.toMap(o -> o.getClass(), o -> o));
             objects.putAll(generation);
 
-            // TODO: clean code
             generation.entrySet().stream()
                     .map(o -> {
-                        final var interfaces = o.getKey().getInterfaces();
-                        final var value = o.getValue();
-                        final var ifaces = new HashMap<Class<?>, Object>();
-                        for (Class<?> cls : interfaces) {
-                            ifaces.put(cls, value);
+                        final var interfaces = new HashMap<Class<?>, Object>();
+                        for (Class<?> cls : o.getKey().getInterfaces()) {
+                            interfaces.put(cls, o.getValue());
                         }
-                        return ifaces;
-                    }).forEach(o -> {
-                objects.putAll(o);
-            });
+                        return interfaces;
+                    }).forEach(objects::putAll);
 
             todo.removeAll(generation.keySet());
 
             if (generation.size() == 0) {
-                // sad path
                 String unmet = todo.stream()
                         .map(o -> o.getName())
                         .collect(Collectors.joining(", "));
@@ -88,15 +80,12 @@ public class Container {
     private boolean allParameterInValues(Constructor<?> constructor) {
         final var parameters = new HashSet<>(Arrays.asList(constructor.getParameters()));
         parameters.removeIf(p -> objects.containsKey(p.getType()));
-        // TODO: check parameter annotation -> throw exception
-        // Service
-        ;
+
         parameters.removeAll(
                 parameters.stream()
                         .filter(p -> p.isAnnotationPresent(Inject.class))
                         .filter(p -> values.containsKey(p.getAnnotation(Inject.class).value()))
                         .collect(Collectors.toList())
-                // "smsUrl", "pushUrl"
         );
         return parameters.isEmpty();
     }
