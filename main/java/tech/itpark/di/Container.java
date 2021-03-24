@@ -31,7 +31,7 @@ public class Container {
     }
 
     public void wire() {
-        HashSet<Class<?>> todo = new HashSet<>(definitions);
+        final var todo = new HashSet<>(definitions);
 
         while (todo.size() > 0) {
             final var generation = todo.stream() // lazy
