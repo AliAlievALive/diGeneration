@@ -1,3 +1,5 @@
+.DS_Store
+Thumbs.db*
 /out/
 /target/
 !.mvn/wrapper/maven-wrapper.jar
